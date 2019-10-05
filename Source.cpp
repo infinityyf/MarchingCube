@@ -51,6 +51,35 @@ glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 LightColor = glm::vec3(1.0f,1.0f,1.0f);
 glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 1.0f);
 
+//记录体元数据
+float voxelcell[8];
+glm::vec3 voxelPos[8];
+
+//记录最终显示的点集
+vector<glm::vec3> sphere;
+
+//边到端点的映射关系
+int edge2point[][2] = {
+	{0,1},
+	{1,2},
+	{2,3},
+	{0,3},
+	{4,5},
+	{5,6},
+	{6,7},
+	{4,7},
+	{0,4},
+	{1,5},
+	{2,6},
+	{3,7}
+};
+
+//插值得到每个三角面片的坐标
+glm::vec3 interpolation(float point1,float point2,glm::vec3 position1,glm::vec3 position2) {
+	glm::vec3 temp = position1 + (position2 - position1) * (1.0f - point1) / (point2-point1);
+	return temp;
+}
+
 //先建立cubeindex 
 int cubeindex = 0;
 void prepare() {
@@ -65,23 +94,66 @@ void prepare() {
 	for (int i = 0; i < Cubesize * Cubesize * Cubesize; i++) {
 		voxels[i] = vertices[i * 5 + 3];
 	}
-	int bound = Cubesize - 1;
-	for (int i = 0; i < bound * bound * bound; i++) {
-		//对于每一个体元，生成cubeindex
-		//为了符合与最后的表产生对应关系，这一必须对点的顺序进行统一
-		cubeindex = 0;
-		if (voxels[i] < 1.0f)cubeindex |= 1;
-		if (voxels[i + 1] < 1.0f)cubeindex |= 2;
-		if (voxels[i + Cubesize] < 1.0f)cubeindex |= 8;
-		if (voxels[i + Cubesize + 1] < 1.0f)cubeindex |= 4;
-		if (voxels[i + Cubesize * Cubesize] < 1.0f)cubeindex |= 16;
-		if (voxels[i + Cubesize * Cubesize + 1] < 1.0f)cubeindex |= 32;
-		if (voxels[i + Cubesize * Cubesize + Cubesize] < 1.0f)cubeindex |= 128;
-		if (voxels[i + Cubesize * Cubesize + Cubesize + 1] < 1.0f)cubeindex |= 64;
-		//cout << voxels[i] << endl;
-		//cout << (int)cubeindex << endl;
+	int bound = Cubesize-1;
+	for (int x = 0; x < bound; x++) {
+		for (int y = 0; y < bound; y++) {
+			for (int z = 0; z < bound; z++) {
+				int i = x * Cubesize * Cubesize + y * Cubesize + z;
+				//对于每一个体元，生成cubeindex
+				//为了符合与最后的表产生对应关系，这一必须对点的顺序进行统一
+				cubeindex = 0;
+				if (voxels[i] < 1.0f)cubeindex |= 1;
+				if (voxels[i + 1] < 1.0f)cubeindex |= 2;
+				if (voxels[i + Cubesize] < 1.0f)cubeindex |= 8;
+				if (voxels[i + Cubesize + 1] < 1.0f)cubeindex |= 4;
+				if (voxels[i + Cubesize * Cubesize] < 1.0f)cubeindex |= 16;
+				if (voxels[i + Cubesize * Cubesize + 1] < 1.0f)cubeindex |= 32;
+				if (voxels[i + Cubesize * Cubesize + Cubesize] < 1.0f)cubeindex |= 128;
+				if (voxels[i + Cubesize * Cubesize + Cubesize + 1] < 1.0f)cubeindex |= 64;
+
+				//记录体元数据
+				voxelcell[0] = voxels[i];
+				voxelcell[1] = voxels[i + 1];
+				voxelcell[2] = voxels[i + Cubesize + 1];
+				voxelcell[3] = voxels[i + Cubesize];
+				voxelcell[4] = voxels[i + Cubesize * Cubesize];
+				voxelcell[5] = voxels[i + Cubesize * Cubesize + 1];
+				voxelcell[6] = voxels[i + Cubesize * Cubesize + Cubesize + 1];
+				voxelcell[7] = voxels[i + Cubesize * Cubesize + Cubesize];
+				//记录体元位置
+				voxelPos[0] = glm::vec3(vertices[i * 5], vertices[i * 5 + 1], vertices[i * 5 + 2]);
+				voxelPos[1] = glm::vec3(vertices[(i + 1) * 5], vertices[(i + 1) * 5 + 1], vertices[(i + 1) * 5 + 2]);
+				voxelPos[2] = glm::vec3(vertices[(i + Cubesize + 1) * 5], vertices[(i + Cubesize + 1) * 5 + 1], vertices[(i + Cubesize + 1) * 5 + 2]);
+				voxelPos[3] = glm::vec3(vertices[(i + Cubesize) * 5], vertices[(i + Cubesize) * 5 + 1], vertices[(i + Cubesize) * 5 + 2]);
+				voxelPos[4] = glm::vec3(vertices[(i + Cubesize * Cubesize) * 5], vertices[(i + Cubesize * Cubesize) * 5 + 1], vertices[(i + Cubesize * Cubesize) * 5 + 2]);
+				voxelPos[5] = glm::vec3(vertices[(i + Cubesize * Cubesize + 1) * 5], vertices[(i + Cubesize * Cubesize + 1) * 5 + 1], vertices[(i + Cubesize * Cubesize + 1) * 5 + 2]);
+				voxelPos[6] = glm::vec3(vertices[(i + Cubesize * Cubesize + Cubesize + 1) * 5], vertices[(i + Cubesize * Cubesize + Cubesize + 1) * 5 + 1], vertices[(i + Cubesize * Cubesize + Cubesize + 1) * 5 + 2]);
+				voxelPos[7] = glm::vec3(vertices[(i + Cubesize * Cubesize + Cubesize) * 5], vertices[(i + Cubesize * Cubesize + Cubesize) * 5 + 1], vertices[(i + Cubesize * Cubesize + Cubesize) * 5 + 2]);
+				//cout << voxels[i] << endl;
+				//cout << (int)cubeindex << endl;
+				//判断交点在哪条边上
+				for (int j = 0; j < 16; j++) {
+					if (triTable[cubeindex][j] == -1)break;
+					//对于每一条相交边都可以插值计算出等值面交点位置
+					int index1 = edge2point[triTable[cubeindex][j]][0];
+					int index2 = edge2point[triTable[cubeindex][j]][1];
+					//cout << index1<<"," << index2 << endl;
+					glm::vec3 position = interpolation(voxelcell[index1], voxelcell[index2], voxelPos[index1], voxelPos[index2]);
+					sphere.push_back(position);
+					//cout << position.x<<" "<< position.y << " " << position.z << endl;
+				}
+			}
+		}
 	}
-	cout << sizeof(vertices) << endl;
+	
+	points = (GLfloat*)malloc(sizeof(GLfloat) * sphere.size()*3);
+	for (int i=0,j = 0; i < sphere.size(); i++,j+=3) {
+		points[j] = sphere[i].x;
+		points[j + 1] = sphere[i].y;
+		points[j + 2] = sphere[i].z;
+	}
+
+	
 }
 
 void key_callback(GLFWwindow *window,int key,int scancode,int action,int mode) {
@@ -173,7 +245,9 @@ void renderScence() {
 	//第三个参数 索引的类型
 	//第四个参数 偏移量
 
-	glDrawArrays(GL_POINTS, 0, Cubesize * Cubesize * Cubesize);
+
+	glDrawArrays(GL_POINTS, 0, sphere.size());
+	//glDrawArrays(GL_TRIANGLES, 0, sphere.size()*2);
 	//按照顶点的顺序构成三角形 而不是按照索引
 	glBindVertexArray(0);
 }
@@ -225,7 +299,7 @@ int main() {
 	glGenVertexArrays(1,&VAO);
 	glBindVertexArray(VAO);
 		//创建顶点缓冲对象
-		CreateVertexBuffer(&VBO);
+		CreateVertexBuffer(&VBO,sphere.size());
 		//创建索引缓冲对象
 		//CreateIndexBuffer(&EBO);
 		//此时VAO已经和VBO EBO 相互关联

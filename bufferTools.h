@@ -10,7 +10,7 @@
 #include "reader.h"
 #include "data.h"
 
-void CreateVertexBuffer(GLuint *VBO) {
+void CreateVertexBuffer(GLuint *VBO,int size) {
 	//标准化设备坐标会变成屏幕空间坐标
 	//屏幕空间坐标，又会输入到片段着色器中，进行逐像素的片段着色
 
@@ -22,14 +22,14 @@ void CreateVertexBuffer(GLuint *VBO) {
 	glBindBuffer(GL_ARRAY_BUFFER, *VBO);
 
 	//复制数据
-	cout << Cubesize << endl;
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * Cubesize * Cubesize * Cubesize * 5, vertices, GL_STATIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * Cubesize * Cubesize * Cubesize * 5, vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * size*3, points, GL_STATIC_DRAW);
 	//GL_STATIC_DRAW ：数据不会或几乎不会改变。
 	//GL_DYNAMIC_DRAW：数据会被改变很多。
 	//GL_STREAM_DRAW ：数据每次绘制时都会改变
 	//相当于指定数据存放的区域
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 	//第一个参数 对于shader 中location
 	//第二个参数 表示顶点属性的大小
 	//第三个参数 数据类型
